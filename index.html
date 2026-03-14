@@ -497,7 +497,7 @@ h2{font-family:var(--ff-d);font-size:22px;font-weight:700;letter-spacing:-.4px;c
       </div>
       <div class="settings-section">
         <div class="settings-section-title">About</div>
-        <div class="card"><div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Painted Armory</div><div class="settings-row-sub">Version 3.3-14.1 · paintedarmory.app</div></div></div></div>
+        <div class="card"><div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Painted Armory</div><div class="settings-row-sub">Version 3.3-14.2 · paintedarmory.app</div></div></div></div>
       </div>
     </div>
   </main>
@@ -1412,9 +1412,33 @@ function renderPhotosStrip(){
   if(thumbsHtml) label.insertAdjacentHTML('beforebegin', thumbsHtml);
 }
 window.removePhoto=function(i){pendingPhotos.splice(i,1);renderPhotosStrip();};
+function compressImage(file,maxW,maxH,quality){
+  return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        let w=img.width,h=img.height;
+        if(w>maxW||h>maxH){
+          const ratio=Math.min(maxW/w,maxH/h);
+          w=Math.round(w*ratio);h=Math.round(h*ratio);
+        }
+        const canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        res(canvas.toDataURL('image/jpeg',quality));
+      };
+      img.src=ev.target.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
 function onPhotos(e){
   const files=[...e.target.files];
-  Promise.all(files.map(f=>new Promise(res=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.readAsDataURL(f);}))).then(results=>{pendingPhotos.push(...results);renderPhotosStrip();e.target.value='';});
+  // Compress to max 1200px wide/tall at 0.72 quality — good display quality, ~80% smaller than raw
+  Promise.all(files.map(f=>compressImage(f,1200,1200,0.72))).then(results=>{
+    pendingPhotos.push(...results);renderPhotosStrip();e.target.value='';
+  });
 }
 
 function renderTagsList(){document.getElementById('m-tags-list').innerHTML=editFormTags.map(t=>`<div class="faction-tag">${esc(t)}<button onclick="removeFormTag('${esc(t)}')">×</button></div>`).join('');}
