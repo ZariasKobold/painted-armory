@@ -16,27 +16,60 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  /* ── Grimoire palette ── */
-  --bg:#EFE6D0;--surface:#F7F0E0;--surface-alt:#E8DDC4;--border:#C9B98A;--border-light:#D8CAA0;
+  /* ── Grimoire palette — Light ── */
+  --bg:#E8E0D0;--surface:#F2EAD8;--surface-alt:#E0D8C4;--border:#BCA878;--border-light:#CEBA90;
   --text:#1E1408;--text-2:#5C4A2A;--text-3:#9C845A;--accent:#1E1408;
-  --gold:#C8861E;--gold-light:#F5DFA0;--gold-bright:#F0A830;
-  --crimson:#7A2020;--crimson-light:#F2DDD0;
-  --green:#2D6040;--green-light:#C8DDC0;
-  --red:#8B2A2A;--red-light:#F0D8D0;--blue:#2B4A7A;--blue-light:#D0DCF0;
-  --purple:#5A2A7A;--purple-light:#E8D8F0;
+  --gold:#C8861E;--gold-light:#F0D890;--gold-bright:#F0A830;
+  --crimson:#7A2020;--crimson-light:#F0D8D0;
+  --green:#2D6040;--green-light:#C4D8BC;
+  --red:#8B2A2A;--red-light:#EDD0C8;--blue:#2B4A7A;--blue-light:#C8D4EC;
+  --purple:#5A2A7A;--purple-light:#E0D0EC;
   --r-sm:6px;--r:10px;--r-lg:16px;--r-xl:24px;
   --sh-sm:0 1px 6px rgba(30,20,8,.10);--sh:0 3px 14px rgba(30,20,8,.13);--sh-lg:0 8px 32px rgba(30,20,8,.18);
   --ff-d:'Fraunces',Georgia,serif;--ff:'DM Sans',system-ui,sans-serif;
   --nav-h:60px;--bnav-h:66px;
-  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+}
+
+/* ── Dark mode variables ── */
+html.dark{
+  --bg:#0F0A04;--surface:#1A1208;--surface-alt:#221A0C;--border:#3A2C14;--border-light:#2E2210;
+  --text:#E8D9B8;--text-2:#B09870;--text-3:#6A5438;--accent:#E8D9B8;
+  --gold:#D4961E;--gold-light:#2A1E08;--gold-bright:#F0A830;
+  --crimson:#A03030;--crimson-light:#2A1010;
+  --green:#3A7850;--green-light:#142010;
+  --red:#A03030;--red-light:#2A1010;--blue:#3A5A9A;--blue-light:#101828;
+  --purple:#6A3A9A;--purple-light:#180E28;
+  --sh-sm:0 1px 6px rgba(0,0,0,.3);--sh:0 3px 14px rgba(0,0,0,.4);--sh-lg:0 8px 32px rgba(0,0,0,.5);
 }
 body{font-family:var(--ff);background:var(--bg);color:var(--text);min-height:100dvh;overflow-x:hidden}
-body::before{content:'';position:fixed;inset:0;background:var(--grain);pointer-events:none;z-index:1;opacity:1;}
+/* Paper grain layer */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:1;opacity:1;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.015 0.4' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23f)' opacity='0.03'/%3E%3C/svg%3E");
+}
+/* Transition for theme switch */
+body,body::before,.card,.modal,.bottom-nav,header{transition:background-color .3s,border-color .3s,color .3s;}
 #app{position:relative;z-index:2}
 #app{display:flex;flex-direction:column;min-height:100dvh}
 
 /* ── Header ─────────────────────────────── */
-header{position:sticky;top:0;z-index:100;background:rgba(239,230,208,.96);backdrop-filter:blur(16px);border-bottom:2px solid var(--border);height:var(--nav-h);display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-shadow:0 2px 12px rgba(30,20,8,.08)}
+header{position:sticky;top:0;z-index:100;background:rgba(232,224,208,.97);backdrop-filter:blur(16px);border-bottom:2px solid var(--border);height:var(--nav-h);display:flex;align-items:center;justify-content:space-between;padding:0 20px;box-shadow:0 2px 12px rgba(30,20,8,.08)}
+html.dark header{background:rgba(15,10,4,.97);box-shadow:0 2px 16px rgba(0,0,0,.4)}
+html.dark .bottom-nav{background:rgba(15,10,4,.97);box-shadow:0 -2px 16px rgba(0,0,0,.4)}
+html.dark .modal{background:var(--surface)}
+html.dark .btn-outline{background:rgba(26,18,8,.7);border-color:var(--border)}
+html.dark .form-input,html.dark .form-select,html.dark .form-textarea{background:var(--surface-alt);border-color:var(--border);color:var(--text)}
+html.dark .chip{background:var(--surface-alt);border-color:var(--border);color:var(--text-2)}
+html.dark .search-bar{background:var(--surface-alt);border-color:var(--border)}
+html.dark .search-bar input{color:var(--text)}
+html.dark .gallery-item{border-color:var(--border)}
+html.dark .system-item{background:var(--surface);border-color:var(--border)}
+html.dark .confirm-box{background:var(--surface)}
+html.dark .card{background-image:none}
+html.dark .mini-card{background-image:none}
+html.dark .stat-card{background-image:none}
+html.dark .modal{background-image:none}
 .logo{font-family:var(--ff-d);font-size:22px;font-weight:700;letter-spacing:-.5px}
 .logo span{color:var(--gold);font-style:italic}
 .sync-pill{display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-family:var(--ff);font-size:12px;color:var(--text-2);padding:5px 10px;border-radius:var(--r);transition:background .15s}
@@ -48,7 +81,7 @@ header{position:sticky;top:0;z-index:100;background:rgba(239,230,208,.96);backdr
 
 /* ── Nav ────────────────────────────────── */
 main{flex:1;padding-bottom:calc(var(--bnav-h) + 16px)}
-.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(239,230,208,.97);backdrop-filter:blur(16px);border-top:2px solid var(--border);height:var(--bnav-h);display:flex;align-items:center;box-shadow:0 -2px 12px rgba(30,20,8,.08)}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(232,224,208,.97);backdrop-filter:blur(16px);border-top:2px solid var(--border);height:var(--bnav-h);display:flex;align-items:center;box-shadow:0 -2px 12px rgba(30,20,8,.08)}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;cursor:pointer;padding:6px 2px;color:var(--text-3);font-family:var(--ff);font-size:10px;font-weight:500;transition:color .15s}
 .nav-btn.active{color:var(--accent)}.nav-btn svg{width:20px;height:20px}
 
@@ -441,6 +474,25 @@ h2{font-family:var(--ff-d);font-size:22px;font-weight:700;letter-spacing:-.4px;c
           <div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Import Collection</div><div class="settings-row-sub">Restore from a previously exported backup file.</div></div><button class="btn btn-outline btn-sm" onclick="document.getElementById('import-input').click()">Import</button></div>
         </div>
         <input type="file" id="import-input" accept=".json" style="display:none;" onchange="importData(event)">
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Appearance</div>
+        <div class="card">
+          <div class="settings-row">
+            <div class="settings-row-info">
+              <div class="settings-row-label">Theme</div>
+              <div class="settings-row-sub">Choose how Painted Armory looks</div>
+            </div>
+          </div>
+          <div style="padding:0 16px 16px;">
+            <div class="chip-group" id="theme-chips">
+              <div class="chip" id="theme-chip-light" onclick="setTheme('light')">☀️ Light</div>
+              <div class="chip" id="theme-chip-dark" onclick="setTheme('dark')">🌙 Dark</div>
+              <div class="chip" id="theme-chip-auto" onclick="setTheme('auto')">⚙️ Auto</div>
+            </div>
+            <p style="font-size:12px;color:var(--text-3);margin-top:10px;line-height:1.5;" id="theme-hint"></p>
+          </div>
+        </div>
       </div>
       <div class="settings-section">
         <div class="settings-section-title">About</div>
@@ -878,7 +930,7 @@ function renderCurrent(){
   else if(curScreen==='gallery')renderGallery();
   else if(curScreen==='stats')renderStats();
   else if(curScreen==='systems')renderSystems();
-  else if(curScreen==='settings')renderSettings();
+  else if(curScreen==='settings'){renderSettings();setTimeout(()=>{if(typeof updateThemeChips==='function')updateThemeChips();},0);}
 }
 document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>showScreen(b.dataset.screen)));
 
@@ -1551,6 +1603,44 @@ renderSettings();
     document.head.appendChild(link);
   } catch(e) { console.warn('PWA manifest injection failed:', e); }
 
+
+// ── Theme ────────────────────────────────────────────────────────────────────
+let themeMode='light'; // 'light' | 'dark' | 'auto'
+let darkMQ=window.matchMedia('(prefers-color-scheme: dark)');
+
+function applyTheme(mode){
+  themeMode=mode;
+  localStorage.setItem('pa_theme',mode);
+  const isDark = mode==='dark' || (mode==='auto' && darkMQ.matches);
+  document.documentElement.classList.toggle('dark', isDark);
+  document.querySelector('meta[name="theme-color"]').content = isDark ? '#0F0A04' : '#1E1408';
+  if(typeof updateThemeChips==='function') updateThemeChips();
+}
+
+function setTheme(mode){ applyTheme(mode); showToast(mode==='light'?'☀️ Light mode':mode==='dark'?'🌙 Dark mode':'⚙️ Following device setting'); }
+window.setTheme=setTheme;
+
+function updateThemeChips(){
+  ['light','dark','auto'].forEach(m=>{
+    const el=document.getElementById('theme-chip-'+m);
+    if(el) el.classList.toggle('selected', themeMode===m);
+  });
+  const hint=document.getElementById('theme-hint');
+  if(hint){
+    if(themeMode==='light') hint.textContent='Always uses the parchment light theme.';
+    else if(themeMode==='dark') hint.textContent='Always uses the dark grimoire theme.';
+    else hint.textContent="Automatically switches based on your device's display settings.";
+  }
+}
+
+// Listen for system preference changes when in auto mode
+darkMQ.addEventListener('change', ()=>{ if(themeMode==='auto') applyTheme('auto'); });
+
+// Init on load
+(function initTheme(){
+  const saved=localStorage.getItem('pa_theme')||'light';
+  applyTheme(saved);
+})();
 
 // ── Lightbox ─────────────────────────────────────────────────────────────────
 let lbPhotos=[],lbIdx=0;
