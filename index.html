@@ -467,14 +467,7 @@ h2{font-family:var(--ff-d);font-size:22px;font-weight:700;letter-spacing:-.4px;c
         <div class="settings-section-title">Google Drive Sync</div>
         <div class="card" id="drive-settings-card"></div>
       </div>
-      <div class="settings-section" id="setup-steps-section" style="display:none;">
-        <div class="settings-section-title">Setup Guide</div>
-        <div class="card setup-steps" style="display:flex;flex-direction:column;">
-          <div class="setup-step"><div class="step-num">1</div><div class="step-body"><h4>Create a Google Cloud Project</h4><p>Go to <a href="https://console.cloud.google.com" target="_blank">console.cloud.google.com</a> → new project → enable the <strong>Google Drive API</strong>.</p></div></div>
-          <div class="setup-step"><div class="step-num">2</div><div class="step-body"><h4>Create OAuth Credentials</h4><p>APIs &amp; Services → Credentials → <strong>OAuth client ID → Web application</strong>. Add your hosting URL under <em>Authorized JavaScript Origins</em>. 💡 <a href="https://pages.github.com" target="_blank">GitHub Pages</a> is a free option for hosting.</p></div></div>
-          <div class="setup-step"><div class="step-num">3</div><div class="step-body"><h4>Paste your Client ID</h4><p>Looks like <code>123456….apps.googleusercontent.com</code>. Saved only in your browser.</p><div class="client-id-row"><input type="text" class="form-input" id="client-id-inp" placeholder="Paste Client ID…"><button class="btn btn-primary btn-sm" onclick="saveClientId()">Save &amp; Sign In</button></div><p style="margin-top:8px;font-size:12px;color:var(--text-3)">Saved: <span id="saved-cid-display">none</span></p></div></div>
-        </div>
-      </div>
+
       <div class="settings-section">
         <div class="settings-section-title">Data</div>
         <div class="card">
@@ -727,6 +720,7 @@ function groupTerm(sysNameOrObj){return getContext(sysNameOrObj).groupTerm;}
 
 const DRIVE_FILE='painted-armory-data.json';
 const DRIVE_SCOPE='https://www.googleapis.com/auth/drive.file';
+const HARDCODED_CID='471221113736-3ao5c6un9vqvj3c9t979so4mng100smh.apps.googleusercontent.com';
 const DISC_DOC='https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
 
 // ═══════════════════════════════════════════════
@@ -757,7 +751,6 @@ const ls={
   setMinis:  d=>localStorage.setItem('mt_minis',JSON.stringify(d)),
   setSystems:d=>localStorage.setItem('mt_systems',JSON.stringify(d)),
   setGoals:  d=>localStorage.setItem('mt_goals',JSON.stringify(d)),
-  getCid:    ()=>localStorage.getItem('mt_cid')||'',
   setCid:    v=>localStorage.setItem('mt_cid',v),
   getDriveId:()=>localStorage.getItem('mt_drive_id')||'',
   setDriveId:v=>localStorage.setItem('mt_drive_id',v),
@@ -787,9 +780,7 @@ function gapiLoaded(){
 function gisLoaded(){gisReady=true;tryAutoSignIn();}
 function tryAutoSignIn(){
   if(!gapiReady||!gisReady)return;
-  const cid=ls.getCid();
-  if(!cid){renderHeader();renderSettings();return;}
-  tokenClient=google.accounts.oauth2.initTokenClient({client_id:cid,scope:DRIVE_SCOPE+' https://www.googleapis.com/auth/userinfo.profile',callback:onToken});
+  tokenClient=google.accounts.oauth2.initTokenClient({client_id:HARDCODED_CID,scope:DRIVE_SCOPE+' https://www.googleapis.com/auth/userinfo.profile',callback:onToken});
   const saved=sessionStorage.getItem('mt_tok');
   if(saved){gapi.client.setToken({access_token:saved});fetchUser().then(()=>pullFromDrive());}
   else{renderHeader();renderSettings();}
@@ -808,9 +799,7 @@ async function fetchUser(){
 function isSignedIn(){return gapiOk()&&!!gapi.client.getToken()&&!!gapi.client.getToken().access_token;}
 function signIn(){
   if(!gapiReady||!gisReady){showToast('Google APIs loading…');return;}
-  const cid=ls.getCid();
-  if(!cid){showToast('Enter your Client ID first (see setup below)');return;}
-  if(!tokenClient)tokenClient=google.accounts.oauth2.initTokenClient({client_id:cid,scope:DRIVE_SCOPE+' https://www.googleapis.com/auth/userinfo.profile',callback:onToken});
+  if(!tokenClient)tokenClient=google.accounts.oauth2.initTokenClient({client_id:HARDCODED_CID,scope:DRIVE_SCOPE+' https://www.googleapis.com/auth/userinfo.profile',callback:onToken});
   tokenClient.requestAccessToken({prompt:isSignedIn()?'':'consent'});
 }
 function signOut(){
@@ -875,21 +864,14 @@ function setSyncStatus(s){syncStatus=s;renderHeader();}
 // ═══════════════════════════════════════════════
 //  SETTINGS
 // ═══════════════════════════════════════════════
-function saveClientId(){
-  const v=document.getElementById('client-id-inp').value.trim();
-  if(!v){showToast('Please paste your Client ID');return;}
-  ls.setCid(v);
-  document.getElementById('saved-cid-display').textContent=v.slice(0,28)+'…';
-  if(gisReady)tokenClient=google.accounts.oauth2.initTokenClient({client_id:v,scope:DRIVE_SCOPE+' https://www.googleapis.com/auth/userinfo.profile',callback:onToken});
-  renderSettings();signIn();
-}
+
 const SYNC_S={offline:'Offline',syncing:'Saving…',synced:'Synced',error:'Error'};
 const SYNC_L={offline:'Using local storage',syncing:'Saving to Drive…',synced:'Synced with Google Drive',error:'Sync error'};
 
 function renderHeader(){
   const el=document.getElementById('header-sync');if(!el)return;
   if(!isSignedIn()){
-    if(gapiReady&&gisReady&&ls.getCid())el.innerHTML=`<button class="sync-pill" onclick="showScreen('settings')"><span class="sync-dot offline"></span>Not signed in</button>`;
+    if(gapiReady&&gisReady)el.innerHTML=`<button class="sync-pill" onclick="showScreen('settings')"><span class="sync-dot offline"></span>Not signed in</button>`;
     else el.innerHTML='';
     return;
   }
@@ -897,25 +879,15 @@ function renderHeader(){
 }
 function renderSettings(){
   const card=document.getElementById('drive-settings-card');
-  const steps=document.getElementById('setup-steps-section');
-  if(!card||!steps)return;
-  const cid=ls.getCid();
-  const cidDisp=document.getElementById('saved-cid-display');
-  if(cidDisp)cidDisp.textContent=cid?cid.slice(0,28)+'…':'none';
+  if(!card)return;
   if(isSignedIn()&&userInfo){
-    steps.style.display='none';
     const stTxt=SYNC_L[syncStatus];
     const pic=userInfo.picture?`<img src="${userInfo.picture}" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;">`:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7"/></svg>`;
     card.innerHTML=`<div class="settings-row"><div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;"><div style="width:38px;height:38px;border-radius:50%;overflow:hidden;background:var(--surface-alt);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${pic}</div><div style="min-width:0;"><div class="settings-row-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(userInfo.name||userInfo.email||'')}</div><div style="font-size:12px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(userInfo.email||'')}</div></div></div><span class="drive-badge on"><span class="sync-dot ${syncStatus}"></span>Connected</span></div><div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Sync Status</div><div class="settings-row-sub">${stTxt} · Stored as <code>painted-armory-data.json</code> in your Drive</div></div><button class="btn btn-outline btn-sm" onclick="manualSync()">Sync Now</button></div><div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Sign Out</div><div class="settings-row-sub">Data stays local until you sign back in.</div></div><button class="btn btn-danger btn-sm" onclick="signOut()">Sign Out</button></div>`;
-  }else if(cid){
-    steps.style.display='none';
-    card.innerHTML=`<div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Google Drive Sync</div><div class="settings-row-sub">Sign in to sync your collection across all devices.</div></div><span class="drive-badge off">Not connected</span></div><div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Sign in with Google</div><div class="settings-row-sub">Client ID: ${cid.slice(0,24)}…</div></div><button class="google-btn btn-sm" onclick="signIn()" style="padding:7px 14px;font-size:13px;">${gLogo()}Sign in</button></div><div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Change Client ID</div></div><button class="btn btn-outline btn-sm" onclick="showSetupSteps()">Edit</button></div>`;
   }else{
-    steps.style.display='none';
-    card.innerHTML=`<div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Google Drive Sync</div><div class="settings-row-sub">Sync across devices. Your data is stored in your own Google Drive only — never on any external server.</div></div><span class="drive-badge off">Not set up</span></div><div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Connect Google Drive</div><div class="settings-row-sub">Takes about 5 minutes. Follow the guide below.</div></div><button class="btn btn-primary btn-sm" onclick="showSetupSteps()">Set Up</button></div>`;
+    card.innerHTML=`<div class="settings-row"><div class="settings-row-info"><div class="settings-row-label">Google Drive Sync</div><div class="settings-row-sub">Sync your collection across all your devices. Your data is stored in your own Google Drive — never on any external server.</div></div><span class="drive-badge off">Not connected</span></div><div class="settings-row" style="padding:16px 16px 20px;"><button class="google-btn" onclick="signIn()" style="width:100%;justify-content:center;padding:10px 20px;font-size:14px;">${gLogo()}Sign in with Google</button></div>`;
   }
 }
-function showSetupSteps(){const s=document.getElementById('setup-steps-section');s.style.display=s.style.display==='none'?'block':'none';if(s.style.display==='block'){const c=ls.getCid();if(c)document.getElementById('client-id-inp').value=c;s.scrollIntoView({behavior:'smooth',block:'start'});}}
 
 // ═══════════════════════════════════════════════
 //  NAVIGATION
