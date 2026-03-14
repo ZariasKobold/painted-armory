@@ -762,7 +762,7 @@ const ls={
 const getMinis=  ()=>_minis  !=null?_minis  :ls.getMinis();
 const getSystems=()=>_systems!=null?_systems:ls.getSystems();
 const getGoals=  ()=>_goals  !=null?_goals  :ls.getGoals();
-function setMinis(d)  {_minis=d;  ls.setMinis(d);  schedSave();}
+function setMinis(d)  {_minis=d;  ls.setMinis(d);  localStorage.setItem('mt_saved_at',new Date().toISOString());  schedSave();}
 function setSystems(d){_systems=d;ls.setSystems(d);schedSave();}
 function setGoals(d)  {_goals=d;  ls.setGoals(d);  schedSave();}
 function schedSave(){if(!isSignedIn())return;clearTimeout(autoSaveTimer);autoSaveTimer=setTimeout(pushToDrive,1800);}
@@ -786,9 +786,19 @@ function tryAutoSignIn(){
   else{renderHeader();renderSettings();}
 }
 async function onToken(resp){
-  if(resp.error){setSyncStatus('error');showToast('Sign-in failed: '+resp.error);renderSettings();return;}
+  if(resp.error){setSyncStatus('error');showToast('Session expired — please sign in again');renderSettings();_pendingRetry=null;return;}
   sessionStorage.setItem('mt_tok',resp.access_token);
-  await fetchUser(); await pullFromDrive(); renderSettings();
+  gapi.client.setToken({access_token:resp.access_token});
+  if(_pendingRetry){
+    // Token refreshed mid-session — retry the pending operation (usually pushToDrive)
+    const retry=_pendingRetry;_pendingRetry=null;
+    await retry();
+  } else {
+    // Fresh sign-in — fetch user then do a smart sync
+    await fetchUser();
+    await smartSync();
+  }
+  renderSettings();
 }
 async function fetchUser(){
   if(!gapiOk())return;
@@ -798,19 +808,14 @@ async function fetchUser(){
 }
 function isSignedIn(){return gapiOk()&&!!gapi.client.getToken()&&!!gapi.client.getToken().access_token;}
 
-// Silently refresh the access token then retry a callback
+// Queue a retry callback after token refresh
+let _pendingRetry=null;
 function refreshTokenAndRetry(cb){
-  if(!tokenClient){setSyncStatus('error');return;}
+  if(!tokenClient){setSyncStatus('error');showToast('Session expired — please sign in again');return;}
+  _pendingRetry=cb;
+  setSyncStatus('syncing');
   tokenClient.requestAccessToken({prompt:''});
-  // onToken callback will fire, which calls pullFromDrive — so just re-register a one-time retry
-  const origCallback=tokenClient.callback||null;
-  tokenClient.callback=async(resp)=>{
-    if(resp.error){setSyncStatus('error');showToast('Session expired — please sign in again');renderSettings();return;}
-    sessionStorage.setItem('mt_tok',resp.access_token);
-    gapi.client.setToken({access_token:resp.access_token});
-    if(cb) await cb();
-    renderHeader();renderSettings();
-  };
+  // onToken will fire and call _pendingRetry if set
 }
 function signIn(){
   if(!gapiReady||!gisReady){showToast('Google APIs loading…');return;}
@@ -828,6 +833,56 @@ function signOut(){
 // ═══════════════════════════════════════════════
 //  DRIVE SYNC
 // ═══════════════════════════════════════════════
+
+// Smart sync: compares local vs Drive savedAt timestamps
+// and keeps whichever is newer rather than blindly overwriting
+async function smartSync(){
+  if(!isSignedIn())return;
+  setSyncStatus('syncing');
+  try{
+    let fid=ls.getDriveId();
+    if(fid){try{await gapi.client.drive.files.get({fileId:fid});}catch{fid='';ls.setDriveId('');}}
+    if(!fid){
+      const res=await gapi.client.drive.files.list({q:`name='${DRIVE_FILE}' and trashed=false`,spaces:'drive',fields:'files(id)'});
+      if(res.result.files&&res.result.files.length>0){fid=res.result.files[0].id;ls.setDriveId(fid);}
+    }
+    if(fid){
+      driveFileId=fid;
+      const r=await gapi.client.drive.files.get({fileId:fid,alt:'media'});
+      const driveData=typeof r.result==='string'?JSON.parse(r.result):r.result;
+      const driveTime=driveData.savedAt?new Date(driveData.savedAt).getTime():0;
+      // Compare with local savedAt
+      const localSavedAt=localStorage.getItem('mt_saved_at');
+      const localTime=localSavedAt?new Date(localSavedAt).getTime():0;
+      if(localTime>driveTime&&getMinis().length>=( driveData.minis||[]).length){
+        // Local is newer — push local up to Drive
+        await pushToDrive();
+        showToast('Local data is newer — saved to Drive ☁️');
+      } else {
+        // Drive is newer — pull down
+        _minis=driveData.minis||[];
+        _systems=driveData.systems||DEFAULT_SYSTEMS;
+        _goals=driveData.goals||[];
+        ls.setMinis(_minis);ls.setSystems(_systems);ls.setGoals(_goals);
+        setSyncStatus('synced');
+        showToast('Loaded from Google Drive ☁️');
+      }
+    }else{
+      // No Drive file yet — push local data up
+      _minis=ls.getMinis();_systems=ls.getSystems();_goals=ls.getGoals();
+      if(_minis.length>0){await pushToDrive();showToast('Local data synced to Drive ☁️');}
+      else{setSyncStatus('synced');showToast('Connected! Start tracking your collection.');}
+    }
+  }catch(e){
+    console.error('smartSync:',e);
+    if(e&&(e.status===401||e.result?.error?.code===401)){refreshTokenAndRetry(smartSync);return;}
+    setSyncStatus('error');
+    _minis=ls.getMinis();_systems=ls.getSystems();_goals=ls.getGoals();
+    showToast('Drive error — using local data');
+  }
+  renderHeader();renderSettings();renderCurrent();
+}
+
 async function pullFromDrive(){
   if(!isSignedIn())return;
   setSyncStatus('syncing');
@@ -863,6 +918,7 @@ async function pullFromDrive(){
   }
   renderHeader();renderSettings();renderCurrent();
 }
+let _syncTimeout=null;
 async function pushToDrive(){
   if(!gapiOk())return;
   // If token missing or expired, refresh silently then retry
@@ -871,7 +927,14 @@ async function pushToDrive(){
     return;
   }
   setSyncStatus('syncing');
-  const body=JSON.stringify({minis:getMinis(),systems:getSystems(),goals:getGoals(),savedAt:new Date().toISOString()});
+  // Safety timeout — if stuck syncing for >10s, reset to error state
+  clearTimeout(_syncTimeout);
+  _syncTimeout=setTimeout(()=>{
+    if(syncStatus==='syncing'){setSyncStatus('error');showToast('Sync timed out — tap to retry');renderHeader();}
+  },10000);
+  const now=new Date().toISOString();
+  localStorage.setItem('mt_saved_at',now);
+  const body=JSON.stringify({minis:getMinis(),systems:getSystems(),goals:getGoals(),savedAt:now});
   const blob=new Blob([body],{type:'application/json'});
   try{
     const token=gapi.client.getToken().access_token;
@@ -891,10 +954,12 @@ async function pushToDrive(){
       refreshTokenAndRetry(pushToDrive);
       return;
     }
+    clearTimeout(_syncTimeout);
     setSyncStatus('synced');
   }catch(e){
     console.error('pushToDrive:',e);
     setSyncStatus('error');
+    clearTimeout(_syncTimeout);
     showToast('Save to Drive failed — tap to retry');
   }
   renderHeader();
