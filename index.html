@@ -1775,6 +1775,52 @@ window.closeLightbox=function(e){
 document.getElementById('lightbox').addEventListener('click',function(e){
   if(e.target===this)closeLightbox();
 });
+
+// ── Global exports (accessible from HTML onclick attributes) ──
+if(typeof addFac!=='undefined')window.addFac=addFac;
+if(typeof addRecipeStep!=='undefined')window.addRecipeStep=addRecipeStep;
+if(typeof addTagToForm!=='undefined')window.addTagToForm=addTagToForm;
+if(typeof closeConfirm!=='undefined')window.closeConfirm=closeConfirm;
+if(typeof closeLightbox!=='undefined')window.closeLightbox=closeLightbox;
+if(typeof closeModal!=='undefined')window.closeModal=closeModal;
+if(typeof confirmDel!=='undefined')window.confirmDel=confirmDel;
+if(typeof confirmDelGoal!=='undefined')window.confirmDelGoal=confirmDelGoal;
+if(typeof confirmDelSys!=='undefined')window.confirmDelSys=confirmDelSys;
+if(typeof copyShareLink!=='undefined')window.copyShareLink=copyShareLink;
+if(typeof cyclePhoto!=='undefined')window.cyclePhoto=cyclePhoto;
+if(typeof exportData!=='undefined')window.exportData=exportData;
+if(typeof goBackFromDetail!=='undefined')window.goBackFromDetail=goBackFromDetail;
+if(typeof importData!=='undefined')window.importData=importData;
+if(typeof lbNav!=='undefined')window.lbNav=lbNav;
+if(typeof manualSync!=='undefined')window.manualSync=manualSync;
+if(typeof moveToCollection!=='undefined')window.moveToCollection=moveToCollection;
+if(typeof openAddModal!=='undefined')window.openAddModal=openAddModal;
+if(typeof openEditModal!=='undefined')window.openEditModal=openEditModal;
+if(typeof openGoalModal!=='undefined')window.openGoalModal=openGoalModal;
+if(typeof openLightbox!=='undefined')window.openLightbox=openLightbox;
+if(typeof openShareModal!=='undefined')window.openShareModal=openShareModal;
+if(typeof openSysModal!=='undefined')window.openSysModal=openSysModal;
+if(typeof removeFac!=='undefined')window.removeFac=removeFac;
+if(typeof resetFilters!=='undefined')window.resetFilters=resetFilters;
+if(typeof saveClientId!=='undefined')window.saveClientId=saveClientId;
+if(typeof saveGoal!=='undefined')window.saveGoal=saveGoal;
+if(typeof saveMini!=='undefined')window.saveMini=saveMini;
+if(typeof saveSys!=='undefined')window.saveSys=saveSys;
+if(typeof selChip!=='undefined')window.selChip=selChip;
+if(typeof selectContext!=='undefined')window.selectContext=selectContext;
+if(typeof setF!=='undefined')window.setF=setF;
+if(typeof setPhotoIdx!=='undefined')window.setPhotoIdx=setPhotoIdx;
+if(typeof setShareTab!=='undefined')window.setShareTab=setShareTab;
+if(typeof setTheme!=='undefined')window.setTheme=setTheme;
+if(typeof shareToPlat!=='undefined')window.shareToPlat=shareToPlat;
+if(typeof showDetail!=='undefined')window.showDetail=showDetail;
+if(typeof showScreen!=='undefined')window.showScreen=showScreen;
+if(typeof showSetupSteps!=='undefined')window.showSetupSteps=showSetupSteps;
+if(typeof signIn!=='undefined')window.signIn=signIn;
+if(typeof signOut!=='undefined')window.signOut=signOut;
+if(typeof toggleFilter!=='undefined')window.toggleFilter=toggleFilter;
+if(typeof toggleSys!=='undefined')window.toggleSys=toggleSys;
+if(typeof toggleView!=='undefined')window.toggleView=toggleView;
 })();
 </script>
 </body>
