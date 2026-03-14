@@ -797,6 +797,21 @@ async function fetchUser(){
   renderHeader();
 }
 function isSignedIn(){return gapiOk()&&!!gapi.client.getToken()&&!!gapi.client.getToken().access_token;}
+
+// Silently refresh the access token then retry a callback
+function refreshTokenAndRetry(cb){
+  if(!tokenClient){setSyncStatus('error');return;}
+  tokenClient.requestAccessToken({prompt:''});
+  // onToken callback will fire, which calls pullFromDrive — so just re-register a one-time retry
+  const origCallback=tokenClient.callback||null;
+  tokenClient.callback=async(resp)=>{
+    if(resp.error){setSyncStatus('error');showToast('Session expired — please sign in again');renderSettings();return;}
+    sessionStorage.setItem('mt_tok',resp.access_token);
+    gapi.client.setToken({access_token:resp.access_token});
+    if(cb) await cb();
+    renderHeader();renderSettings();
+  };
+}
 function signIn(){
   if(!gapiReady||!gisReady){showToast('Google APIs loading…');return;}
   if(!tokenClient)tokenClient=google.accounts.oauth2.initTokenClient({client_id:HARDCODED_CID,scope:DRIVE_SCOPE+' https://www.googleapis.com/auth/userinfo.profile',callback:onToken});
@@ -835,27 +850,53 @@ async function pullFromDrive(){
       if(_minis.length>0){await pushToDrive();showToast('Local data synced to Drive ☁️');}
       else{setSyncStatus('synced');showToast('Connected! Start tracking your collection.');}
     }
-  }catch(e){console.error('pullFromDrive:',e);setSyncStatus('error');_minis=ls.getMinis();_systems=ls.getSystems();_goals=ls.getGoals();showToast('Drive error — using local data');}
+  }catch(e){
+    console.error('pullFromDrive:',e);
+    // If likely a token expiry, try refreshing
+    if(e&&(e.status===401||e.result?.error?.code===401)){
+      refreshTokenAndRetry(pullFromDrive);
+      return;
+    }
+    setSyncStatus('error');
+    _minis=ls.getMinis();_systems=ls.getSystems();_goals=ls.getGoals();
+    showToast('Drive error — using local data');
+  }
   renderHeader();renderSettings();renderCurrent();
 }
 async function pushToDrive(){
-  if(!isSignedIn()||!gapiOk())return;
+  if(!gapiOk())return;
+  // If token missing or expired, refresh silently then retry
+  if(!isSignedIn()){
+    refreshTokenAndRetry(pushToDrive);
+    return;
+  }
   setSyncStatus('syncing');
   const body=JSON.stringify({minis:getMinis(),systems:getSystems(),goals:getGoals(),savedAt:new Date().toISOString()});
   const blob=new Blob([body],{type:'application/json'});
   try{
     const token=gapi.client.getToken().access_token;
+    let resp;
     if(driveFileId){
-      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,{method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:blob});
+      resp=await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,{method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:blob});
     }else{
       const form=new FormData();
       form.append('metadata',new Blob([JSON.stringify({name:DRIVE_FILE,mimeType:'application/json'})],{type:'application/json'}));
       form.append('file',blob);
-      const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Authorization':'Bearer '+token},body:form});
-      const d=await r.json();driveFileId=d.id;ls.setDriveId(d.id);
+      resp=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',{method:'POST',headers:{'Authorization':'Bearer '+token},body:form});
+      const d=await resp.json();driveFileId=d.id;ls.setDriveId(d.id);
+    }
+    // If 401, token expired mid-session — refresh and retry
+    if(resp&&resp.status===401){
+      console.warn('Token expired, refreshing…');
+      refreshTokenAndRetry(pushToDrive);
+      return;
     }
     setSyncStatus('synced');
-  }catch(e){console.error('pushToDrive:',e);setSyncStatus('error');showToast('Save to Drive failed');}
+  }catch(e){
+    console.error('pushToDrive:',e);
+    setSyncStatus('error');
+    showToast('Save to Drive failed — tap to retry');
+  }
   renderHeader();
 }
 async function manualSync(){if(!isSignedIn()){signIn();return;}await pullFromDrive();}
@@ -875,7 +916,8 @@ function renderHeader(){
     else el.innerHTML='';
     return;
   }
-  el.innerHTML=`<button class="sync-pill" onclick="manualSync()"><span class="sync-dot ${syncStatus}"></span>${SYNC_S[syncStatus]}</button>`;
+  const action=syncStatus==='error'?'signIn':'manualSync';
+  el.innerHTML=`<button class="sync-pill" onclick="${action}()"><span class="sync-dot ${syncStatus}"></span>${SYNC_S[syncStatus]}</button>`;
 }
 function renderSettings(){
   const card=document.getElementById('drive-settings-card');
