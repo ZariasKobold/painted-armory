@@ -523,7 +523,7 @@ h2{font-family:var(--ff-d);font-size:22px;font-weight:700;letter-spacing:-.4px;c
       <div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-input" id="m-name" placeholder="e.g. Space Marine Intercessors"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Game System *</label><div class="form-select-wrap"><select class="form-select" id="m-system" onchange="popFactions()"></select></div></div>
-        <div class="form-group"><label class="form-label" id="m-faction-label">Faction</label><div class="form-select-wrap" id="faction-wrap"><select class="form-select" id="m-faction"></select></div><input type="text" class="form-input" id="m-faction-custom" id="m-faction-custom-inp" placeholder="Or type custom…" style="margin-top:6px;"></div>
+        <div class="form-group"><label class="form-label" id="m-faction-label">Faction</label><div class="form-select-wrap" id="faction-wrap"><select class="form-select" id="m-faction"></select></div><input type="text" class="form-input" id="m-faction-custom" placeholder="Or type custom…" style="margin-top:6px;"></div>
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Quantity</label><input type="number" class="form-input" id="m-qty" min="1" value="1"></div>
@@ -1447,34 +1447,40 @@ function mkChips(cid,opts,key,sel){chips[key]=sel;document.getElementById(cid).i
 function selChip(cid,key,id,opts){chips[key]=id;mkChips(cid,opts,key,id);}
 
 function saveMini(){
-  const name=document.getElementById('m-name').value.trim();
-  const sys=document.getElementById('m-system').value;
-  if(!name){showToast('Please enter a name');return;}
-  if(!sys){showToast('Please select a system');return;}
-  const faction=document.getElementById('m-faction-custom').value.trim()||document.getElementById('m-faction').value||'';
-  const isWishlist=document.getElementById('mini-modal').dataset.wishlist==='1';
-  const minis=getMinis(),now=new Date().toISOString();
-  const mini={
-    id:editMiniId||`m_${Date.now()}_${Math.random().toString(36).substr(2,6)}`,
-    name,gameSystem:sys,faction,wishlist:isWishlist,
-    assemblyStatus:chips['asm']||'unassembled',
-    paintStatus:chips['pnt']||'unpainted',
-    notes:document.getElementById('m-notes').value.trim(),
-    photos:[...pendingPhotos],
-    photoDataUrl:pendingPhotos[0]||null, // backward compat
-    cost:parseFloat(document.getElementById('m-cost').value)||0,
-    quantity:Math.max(1,parseInt(document.getElementById('m-qty').value)||1),
-    tags:[...editFormTags],
-    paintRecipe:[...editRecipeSteps],
-    createdAt:editMiniId?(minis.find(m=>m.id===editMiniId)||{}).createdAt||now:now,
-    updatedAt:now,
-  };
-  if(editMiniId){const i=minis.findIndex(m=>m.id===editMiniId);if(i!==-1)minis[i]=mini;}else minis.unshift(mini);
-  setMinis(minis);closeModal('mini-modal');showToast(editMiniId?'Updated!':'Added!');
-  if(curScreen==='home')renderHome();
-  else if(curScreen==='collection')renderCollection();
-  else if(curScreen==='wishlist')renderWishlist();
-  else if(curScreen==='detail')showDetail(mini.id,detailFromScreen);
+  try{
+    const name=document.getElementById('m-name').value.trim();
+    const sys=document.getElementById('m-system').value;
+    if(!name){showToast('Please enter a name');return;}
+    if(!sys){showToast('Please select a system');return;}
+    const factionCustomEl=document.getElementById('m-faction-custom');
+    const faction=(factionCustomEl?factionCustomEl.value.trim():'')||document.getElementById('m-faction').value||'';
+    const isWishlist=document.getElementById('mini-modal').dataset.wishlist==='1';
+    const minis=getMinis(),now=new Date().toISOString();
+    const mini={
+      id:editMiniId||`m_${Date.now()}_${Math.random().toString(36).substr(2,6)}`,
+      name,gameSystem:sys,faction,wishlist:isWishlist,
+      assemblyStatus:chips['asm']||'unassembled',
+      paintStatus:chips['pnt']||'unpainted',
+      notes:document.getElementById('m-notes').value.trim(),
+      photos:[...pendingPhotos],
+      photoDataUrl:pendingPhotos[0]||null,
+      cost:parseFloat(document.getElementById('m-cost').value)||0,
+      quantity:Math.max(1,parseInt(document.getElementById('m-qty').value)||1),
+      tags:[...editFormTags],
+      paintRecipe:[...editRecipeSteps],
+      createdAt:editMiniId?(minis.find(m=>m.id===editMiniId)||{}).createdAt||now:now,
+      updatedAt:now,
+    };
+    if(editMiniId){const i=minis.findIndex(m=>m.id===editMiniId);if(i!==-1)minis[i]=mini;}else minis.unshift(mini);
+    setMinis(minis);closeModal('mini-modal');showToast(editMiniId?'Updated!':'Added!');
+    if(curScreen==='home')renderHome();
+    else if(curScreen==='collection')renderCollection();
+    else if(curScreen==='wishlist')renderWishlist();
+    else if(curScreen==='detail')showDetail(mini.id,detailFromScreen);
+  }catch(err){
+    console.error('saveMini error:',err);
+    showToast('Error saving — please try again');
+  }
 }
 
 // ═══════════════════════════════════════════════
